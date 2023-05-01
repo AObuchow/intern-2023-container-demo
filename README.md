@@ -1,157 +1,64 @@
-# Containers, Kubernetes and OpenShift
+# Container Demo
 
-A demo constructed for the Toronto internship program orientation.
+A demo on containers for the Toronto internship program orientation.
 
-In the first demo, we will be building and running a simple go server locally.
+Consists of a simple Go server with instructions on how to run it locally, and from within a container.
 
-In the second demo, we will be deploying it as an application to an OpenShift cluster via `oc`
-
-With sections from previous year demos by:
-
-[Angel Misevski](https://github.com/amisevsk)
-[Jie Kang](https://github.com/jiekang)
-[Josh Pinkney](https://github.com/JPinkney)
+Credit goes to [Yu Qi (Jerry) Zhang](https://github.com/yuqi-zhang), from which this demo was [forked from](https://github.com/yuqi-zhang/intern-2022-demos).  
 
 ## Part 0: Setup
 
-For the Container demo, we will be doing it via `podman`. If you do not have this locally (`which podman`) you can get it via `dnf install podman`.
+### Install Podman
+We will be running our container with `podman`. If you do not have this locally (`which podman`) you can get it via `sudo dnf install podman`.
 
-For the Cluster demo, we will be using `oc` (the OpenShift Origin Client), but a lot of the commands are also the same via `kubectl`. You should have `oc` locally already (check with `which oc`). If you do not, we recommend downloading the latest version via OpenShift mirrors.
+### Clone this repo
 
-Using `oc` and `kubectl` from the commandline involves a whole lot of typing. It's really useful to have autocompletion for command names, arguments, resource types, and object names. To enable this (if it's not already in your `.bashrc`), you can run
-```bash
-source <(kubectl completion bash); source <(oc completion bash)
-```
-To get more information, use `oc completion --help`. (Note: if you're using `zsh`, that's supported too! Just replace `bash` with `zsh` above)
+Clone this repo locally with `git clone https://github.com/AObuchow/intern-2023-container-demo`
 
-Finally, you should clone this repo locally (e.g. `git clone https://github.com/yuqi-zhang/intern-2022-demos.git`)
+## Part 1: Running the wbeserver using a pre-built container
 
-## Part 1: Container demo: running a basic web server
+To start, we'll demonstrate the ease of deploying a container across different environments. To do so, you'll be deploying a container that was built on a different computer than your own. 
 
-Inside the container repo we will have the necessary bits to build a web server. It is a simple frontend (`index.tmpl`) and golang backend `app.go` with the necessary `go.mod` and `go.sum` to build. You can build this locally (requires you to install golang) via `./build-local.sh` and then running the server via `./server`.
+To deploy the container on your system, run `podman run -it -p 8080:8080 quay.io/aobuchow/intern-demo-2023`. This will pull (download) a remote container image from [`quay.io/aobuchow/intern-demo-2023`](quay.io/aobuchow/intern-demo-2023), map the container's port `8080` to your `localhost:8080` and deploy the container locally. 
 
-Now if you go to `http://localhost:8080/` you can see the simple server running.
+**Something to note:** you are now running a Go server without needing to have Go installed on your system! Containers package applications alongside their dependencies and configuration files so that they can be deployed anywhere in a uniform manner. 
 
-Let us instead run that in a container. With podman installed, run:
+To stop the running server, send a `SIGINT` by doing a CTRL+C in the terminal you used to run the deploy the container. 
 
-`podman build -t localhost/go-server .`
+## Part 2: Run the web server locally
 
-To create the image. Then, `podman run -it -p 8080:8080 localhost/go-server` to start it.
+Inside the [repo](https://github.com/AObuchow/intern-2023-container-demo) we have all the necessary bits to build the web server we deployed in Part 1. It is a simple frontend (`index.tmpl`) and golang backend `app.go` with the necessary `go.mod` and `go.sum` to build.
 
-Now it's running the same thing, but via a container.
+To build the web server locally:
+1. Install Go: `sudo dnf install go`
+2. Run the build script: `./build-local.sh`
+3. Start the server: `./server`
 
-You can also push the image to a registry, e.g.: `podman push localhost/go-server:latest quay.io/jerzhang/demo-go-server`
+Now if you go to [`http://localhost:8080/`](http://localhost:8080/) you can see the simple server running.
 
-Once you are done, you can see containers with `podman ps -a` and `podman rm` the container.
+Once again, you can stop the running server by doing a CTRL+C in the terminal you used to start the server.
 
-## Part 2: Cluster demo: running the web server in an OpenShift cluster
+## Part 3: Build and run your own container
 
-The `openshift/manifests` directory contains the YAML files we'll be deploying to our cluster. 
+Now, lets build your own version of the container that you deployed in Part 1.
 
-You can *apply* a template to the cluster using the command
-```bash
-oc apply -f templates/<file>.yaml
-```
-You can also use
-```bash
-oc apply -f templates/
-```
-to apply *all* files in the templates folder at once.
+To do so, run `podman build -t localhost/go-server .`
 
-____
+Podman will build the container by executing the commands listed in the repo's [Dockerfile](./Dockerfile).
 
-First, let's login to our cluster. Go to the cluster URL provided. Ignore the security warnings, and choose the login with `htpasswd` option. Your username is your Red Hat id and your password is `openshift`.
+Next, run `podman run -it -p 8080:8080 localhost/go-server` to start it.
 
-Once inside, you can click on your name on the top right, and select `Copy login command`, which will bring you to another sign-on page. Login, hit `display token`, and you should see something like:
+You can also push the image to a registry (though you'll have to make an account if you wish to use [quay.io](quay.io)), e.g.: `podman push localhost/go-server:latest quay.io/aobuchow/intern-demo-2023`. 
 
-```bash
-oc login --token=sha256~${TOKEN} --server=${URL}
-```
+Stop the container by doing a CTRL+C in the terminal you used to run the deploy the container. 
 
-Copy that, and run that in a local terminal, where you plan on applying the config files. We will be doing a lot of commands via the command line, but you can actually also do the same via the web console.
+Once you are done, you can see containers with `podman ps -a` and `podman rm <container-name>` the container.
 
-Once you've successfully authenticated, create a project in your own name: e.g. `oc new-project jerzhang`
+### Bonus: re-map the container's server port to a different port on your local system
+Instead of mapping the containers port `8080` to your system's port `8080`, you could map it to a different port on your system (for example, port `8081`).
 
-And you can see projects with `oc project`.
+Try this out by running `podman run -it -p 8081:8080 localhost/go-server`, and then accessing the web server on [`http://localhost:8081/`](http://localhost:8081/).
 
-From now on, whenever you run a command, it will be under this project (namespace).
-____
-
-Now, lets create our deployment:
-```bash
-oc apply -f manifests/deployment.yaml
-```
-
-This creates the web server we just did in the containers demo in our cluster as a deployment. The image we are using is `quay.io/jerzhang/demo-go-server:latest` which is what we just pushed.
-
-we can check the status of our deployment using `oc get` and `oc describe`
-```bash
-oc get deployment demo-deployment
-# output:
-NAME              READY   UP-TO-DATE   AVAILABLE   AGE
-demo-deployment   0/1     1            0           2s
-```
-While we wait for everything to get started, we can also:
-1. Check out the pods created by the deployment using `oc get po -l 'app=demo-app'`. Here, we're using a *label selector* to only get pods with label `app=demo-app`. Otherwise, we'd get all pods in the current namespace.
-2. View the yaml we used for our deployment, with its current status using `oc get deploy demo-deployment -o yaml` (you can use `-o json` to output JSON as well!)
-
-We've now got a deployment that contains our server running in Kubernetes! How do we access it from our browser?
-
-Next, we need to create a service to route traffic to the set of pods maintained by our deployment:
-```bash
-oc apply -f manifests/service.yaml
-```
-and then we need to create a route to expose that service to the internet:
-```bash
-oc apply -f manifests/route.yaml
-```
-Note: routes are an OpenShift specific object. For base Kubernetes, you will have to set up ingress instead.
-
-## Testing it out
-Once you've created the route, you can get the URL you'll use to access the deployment from `oc`:
-```bash
-oc get routes
-# output
-NAME         HOST/PORT                                          PATH   SERVICES       PORT   TERMINATION   WILDCARD
-demo-route   demo-route-<current-namespace>.<url-for-cluster>          demo-service   http                 None
-```
-
-Accessing this URL should show you the server we ran locally.
-
-## Configuring our deployment
-
-Our deployment currently has a replica of 1, meaning there is exactly 1 pod running for it.
-
-What happens if something breaks?
-
-```bash
-oc delete pod/demo-deployment-<hash>
-```
-
-It will recover very fast (kubernetes is trying to reconcile the deployment). But that doesn't seem very good in terms of availability.
-
-Let's try to scale the deployment up to three replicas using 
-```bash
-oc scale deploy demo-deployment --replicas=3
-```
-
-Wait for them to be ready
-```bash
-oc get deployment demo-deployment
-# output:
-NAME              READY   UP-TO-DATE   AVAILABLE   AGE
-demo-deployment   1/3     3            1           6m30s
-```
-
-delete a pod:
-```bash
-oc delete pod/demo-deployment-<hash>
-```
-
-No downtime.
-
-## Cleanup
-To remove everything we've deployed thus far, you can use a label selector to delete all the objects we created in the demo:
-```bash
-oc delete all -l 'app=demo-app'
-```
+**Something to note:** the web server was implemented to run on port `8080`, but thanks to containers, we are able to access it on our system via port `8081`. There are many use cases and benefits to container port mapping. For example:
+- Port `8080` may already be in use by another application on your system. Port mapping allows you to use another available port instead.
+- You might not normally be able to easily change the port the application is intended to run on (e.g. the application is closed-source and there's no option to configure the port). Port mapping allows you to circumvent this limitation.
